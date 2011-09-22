@@ -26,14 +26,14 @@ class BaseMultilingualMiddleware(LocaleMiddleware):
     
     is_generic_middleware = False
     language_fallback_middlewares = ['django.middleware.locale.LocaleMiddleware']
- 
+    
     def has_language_fallback_middlewares(self):
         has_fallback = False
         for middleware in self.language_fallback_middlewares: 
             if middleware in settings.MIDDLEWARE_CLASSES:
                 has_fallback = True
         return has_fallback
-
+            
     def process_response(self, request, response):
         if not self.has_language_fallback_middlewares():
             return super(MultilingualGenericsMiddleware, self).process_response(request, response)
@@ -50,7 +50,10 @@ class FilterQuerysetMixin(object):
 
 class MultilingualUrlMixin(object):
     """ Checks for language_code and in view_kwargs, sets language, call super depending on is_generic_middleware """
-    
+
+    def process_request(self, request):
+        pass
+
     def process_view(self, request, view_func, view_args, view_kwargs):
         language = None
         if 'language_code' in view_kwargs:
@@ -60,7 +63,7 @@ class MultilingualUrlMixin(object):
             request.LANGUAGE_CODE = translation.get_language()
             
         if self.is_generic_middleware:
-            super(MultilingualUrlMixin, self).process_view(request, view_func, view_args, view_kwargs):
+            super(MultilingualUrlMixin, self).process_view(request, view_func, view_args, view_kwargs)
             
 class MultilingualUrlMiddleware(BaseMultilingualMiddleware, MultilingualUrlMixin):
     """ Checks for language_code and in view_kwargs, sets language """
@@ -68,7 +71,10 @@ class MultilingualUrlMiddleware(BaseMultilingualMiddleware, MultilingualUrlMixin
     
 class MultilingualNoUrlGenericsMiddleware(BaseMultilingualMiddleware, FilterQuerysetMixin):
     """ Filters any queryset passed to the view based on request.LANGUAGE_CODE """
-    pass
+    
+    def process_request(self, request):
+        if not self.has_language_fallback_middlewares():
+            return super(MultilingualGenericsMiddleware, self).process_request(request)    
     
 class CmsMultilingualGenericsMiddleware(MultilingualNoUrlGenericsMiddleware):
     """ Filters any queryset passed to the view based on request.LANGUAGE_CODE tests for django-cms middleware"""
