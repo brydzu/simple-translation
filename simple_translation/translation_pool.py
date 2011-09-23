@@ -5,6 +5,7 @@ class TranslationAllreadyRegistered(Exception):
     pass
 
 class TranslationOptions(object):
+    """ Options class for info about translated model """
     
     def __init__(self, options={}):
         self.language_field = options.get('language_field', 'language')
@@ -15,12 +16,15 @@ class TranslationOptions(object):
         self.translation_join_filter = options.get('translation_join_filter')
         
 class TranslationPool(object):
+    """ Pool for registering models with translated model + options """
     
     discovered = False
     translated_models_dict = {}
     translation_models_dict = {}
     
-    def discover_translations(self):        
+    def discover_translations(self):
+        """ Autodiscover simple_translate in all installed apps """
+        
         if self.discovered:
             return
         for app in settings.INSTALLED_APPS:
@@ -28,6 +32,8 @@ class TranslationPool(object):
         self.discovered = True    
 
     def get_info(self, model):
+        """ Get registered options for translated model or translation of model """
+
         self.discover_translations()
         if model in self.translated_models_dict:
             return self.translated_models_dict[model]
@@ -38,6 +44,7 @@ class TranslationPool(object):
         
     def register_translation(self, translation_of_model, translated_model, \
         language_field='language'):
+        """ Register a translation of a model and any custom language field in the pool """
         
         assert issubclass(translation_of_model, models.Model) \
             and issubclass(translated_model, models.Model)
@@ -64,74 +71,20 @@ class TranslationPool(object):
         self.translation_models_dict[translated_model] = translation_of_model
 
     def unregister_translation(self, translation_of_model):
+        """ Unregister a translated model from the pool """
         info = self.get_info(translation_of_model)
         del self.translation_models_dict[info.translated_model]
         del self.translated_models_dict[translation_of_model]
-    
-    def annotate_with_translations(self, list_or_instance):
-        
-        self.discover_translations()
-        if not list_or_instance:
-            return list_or_instance
-        languages = [language_code for language_code, language_name in settings.LANGUAGES]
-        
-        model = list_or_instance.__class__ if isinstance(
-            list_or_instance, models.Model
-        ) else list_or_instance[0].__class__
-        info = self.get_info(model)
 
-        # Helper function that sorts translations according to settings.LANGUAGES
-        def language_key(translation):
-            l = getattr(translation, info.language_field)
-            try:
-                return languages.index(l)
-            except ValueError:
-                pass
-
-        if isinstance(list_or_instance, models.Model):
-            instance = list_or_instance
-            if self.is_registered_translation(model):
-                instance = getattr(list_or_instance, \
-                    info.translation_of_field)
-            
-            translations = list(getattr(instance, \
-            	info.translations_of_accessor).filter(**{'%s__in' % info.language_field: languages}))
-
-            list_or_instance.translations = sorted(translations, key=language_key)
-            
-            return list_or_instance
-        else:
-            result_list = list_or_instance
-            if not len(result_list):
-                return result_list
-                            
-            id_list = [r.pk for r in result_list]
-            pk_index_map = dict([(pk, index) for index, pk in enumerate(id_list)])
-            
-            translations = info.translated_model.objects.filter(**{
-                info.translation_of_field + '__in': id_list,
-                info.language_field + '__in': languages,
-            })
-            
-            new_result_list = []
-            for obj in translations:
-                index = pk_index_map[getattr(obj, info.translation_of_field + '_id')]
-                if not hasattr(result_list[index], 'translations'):
-                    result_list[index].translations = []
-                result_list[index].translations.append(obj)
-            
-            for result in result_list:
-                result.translations = sorted(result.translations, key=language_key)
-               
-        return result_list
-    
     def is_registered_translation(self, model):
+        """ Check if a translation model is registered in the pool """
         self.discover_translations()
         if model in self.translation_models_dict:
             return True
         return False
         
     def is_registered(self, model):
+        """ Check if a translated model is registered in the pool """
         self.discover_translations()
         if model in self.translated_models_dict:
             return True

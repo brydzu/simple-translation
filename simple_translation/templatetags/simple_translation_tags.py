@@ -3,14 +3,11 @@ from django import template
 from django.template.loader import render_to_string
 from django.db import models
 from simple_translation.translation_pool import translation_pool
-from simple_translation.utils import get_preferred_translation_from_request, get_preferred_translation_from_lang
+from simple_translation.utils import get_preferred_translation_from_request, get_preferred_translation_from_lang, annotate_with_translations
 
 register = template.Library()
 
-def annotate_with_translations(object_or_list):
-    return translation_pool.annotate_with_translations(object_or_list)
-register.filter(annotate_with_translations)
- 
+register.filter(annotate_with_translations) 
 register.filter(get_preferred_translation_from_request)
 register.filter(get_preferred_translation_from_lang)
     

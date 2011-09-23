@@ -18,8 +18,12 @@ from django.template.context import RequestContext
 
 from simple_translation.widgets import LanguageWidget
 from simple_translation.forms import TranslationModelForm, translation_modelform_factory
-from simple_translation.utils import get_language_from_request
-from simple_translation.translation_pool import translation_pool
+from simple_translation.utils import (
+    annotate_with_translations,
+    get_language_from_request,
+    get_translated_model,
+    get_language_field,
+    get_translation_of_field)
 
 import django
 
@@ -33,20 +37,19 @@ def make_translation_admin(admin):
         
         def __init__(self, *args, **kwargs):
             super(RealTranslationAdmin, self).__init__(*args, **kwargs)
-            info = translation_pool.get_info(self.model)
-            self.translated_model = info.translated_model
-            self.translation_of_field = info.translation_of_field
-            self.language_field = info.language_field
+            self.translated_model = get_translated_model(self.model)
+            self.translation_of_field = get_translation_of_field(self.model)
+            self.language_field = get_language_field(self.model)
     
         def description(self, obj):
-            return getattr(translation_pool.annotate_with_translations(obj), 'translations', []) \
-            	and unicode(translation_pool.annotate_with_translations(obj).translations[0]) or u'No translations'
+            return getattr(annotate_with_translations(obj), 'translations', []) \
+            	and unicode(annotate_with_translations(obj).translations[0]) or u'No translations'
         
         def languages(self, obj):
                 lnk = '<a href="%s/?language=%s">%s</a>'
                 trans_list = [ (obj.pk, \
                 	getattr(t, self.language_field), getattr(t, self.language_field).upper())
-                    	for t in getattr(translation_pool.annotate_with_translations(obj), 'translations') or []]
+                    	for t in getattr(annotate_with_translations(obj), 'translations') or []]
                 return ' '.join([lnk % t for t in trans_list])
         languages.short_description = _('languages')
         languages.allow_tags = True
@@ -160,7 +163,7 @@ def make_translation_admin(admin):
             if obj is None:
                 raise Http404(_('%(name)s object with primary key %(key)r does not exist.') % {'name': force_unicode(opts.verbose_name), 'key': escape(object_id)})
     
-            if not len(translation_pool.annotate_with_translations(obj).translations) > 1:
+            if not len(annotate_with_translations(obj).translations) > 1:
                 raise Http404(_('There only exists one translation for this page'))
     
             translationobj = get_object_or_404(self.translated_model, **{self.translation_of_field + '__id': object_id, 'language': language})

@@ -1,29 +1,9 @@
 from django.conf import settings
-from django.middleware.locale import LocaleMiddleware
 from django.utils import translation
+from django.middleware.locale import LocaleMiddleware
 
-from simple_translation.translation_pool import translation_pool
+from simple_translation.utils import filter_queryset_language
 
-def filter_queryset_language(request, queryset):
-    language = getattr(request, 'LANGUAGE_CODE', None)
-
-    if not language:
-        return queryset
-
-    model = queryset.model
-    filter_expr = None
-    if translation_pool.is_registered(model):
-        info = translation_pool.get_info(model)
-        filter_expr = '%s__%s' % (info.translation_join_filter, info.language_field)
-    if translation_pool.is_registered_translation(model):
-        info = translation_pool.get_info(model)
-        filter_expr = '%s' % info.language_field
-    if filter_expr:
-        queryset = queryset.filter( \
-            **{filter_expr: language}).distinct()
-
-    return queryset
-    
 class MultilingualGenericsMiddleware(LocaleMiddleware):
     
     language_fallback_middlewares = ['django.middleware.locale.LocaleMiddleware']
