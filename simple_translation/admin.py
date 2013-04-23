@@ -203,7 +203,6 @@ def make_translation_admin(admin):
                 "deleted_objects": deleted_objects,
                 "perms_lacking": perms_needed,
                 "opts": translationopts,
-                "root_path": self.admin_site.root_path,
                 "app_label": app_label,
             }
             context.update(extra_context or {})
